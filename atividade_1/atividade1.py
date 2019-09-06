@@ -46,26 +46,25 @@ class Mensagem():
     def unpack(data):
         mensagem = struct.unpack(Mensagem.format, data)
         return Mensagem(mensagem[0], mensagem[1].decode('UTF-8').strip('\x00'), mensagem[2], mensagem[3])
-
+[]
 timestamp = 0 # Inicialização das marcas de tempo
 fila = [] # Inicialização da fila de mensagens
 acks = dict() # Inicialização dos contadores de ACKs
 
 # Envia a mensagem para todos os processos
 def send(mensagem):
+    print('[{}] Enviado {}'.format(timestamp, mensagem))
     for i in range(0, PROCCESS_N):
         sock.sendto(mensagem.pack(), (MULTICAST_GROUP, 10000+i))
-    # print('[{}] Enviado {}'.format(timestamp, mensagem))
-    time.sleep(random.randint(0, 3)) # Dorme um intervalo aleatório (simula atrasos na rede)
+        # time.sleep(random.randint(0, 3)) # Dorme um intervalo aleatório (simula atrasos na rede)
 
 # Processa as mensagens recebidas e envia ACKs
 def listen():
     global timestamp, fila, acks
     while True:
         data, address = sock.recvfrom(1024) # Aguarda por uma mensagem
-        timestamp+= 1 # Incrementa a marca de tempo
         mensagem = Mensagem.unpack(data) # Decodifica a mensagem
-        timestamp = max(timestamp, mensagem.timestamp) # Atualiza a marca de tempo (em comparação com a recebida)
+        timestamp = max(timestamp, mensagem.timestamp)+1 # Atualiza a marca de tempo (em comparação com a recebida)
 
         if(mensagem.ack == False): # Caso seja mensagem
             fila.append(mensagem) # Adiciona a mensagem na fila
@@ -83,10 +82,10 @@ def listen():
                 acks.pop(fila[0].id)
                 fila.pop(0)
         
-        # print('[{}] Recebido {}'.format(timestamp, mensagem))
+        print('[{}] Recebido {}'.format(timestamp, mensagem))
         print('[{}] Fila: {}'.format(timestamp, fila))
-        # print('[{}] Acks: {}'.format(timestamp, acks))
-        time.sleep(random.randint(0, 3)) # Dorme um intervalo aleatório (simula atrasos na rede)
+        print('[{}] Acks: {}'.format(timestamp, acks))
+        # time.sleep(random.randint(0, 3)) # Dorme um intervalo aleatório (simula atrasos na rede)
 
 # Envia as mensagens do usuário
 def write():
@@ -94,8 +93,7 @@ def write():
     while True:
         texto = input('') # Recebe a mensagem do terminal
         timestamp+= 1 # Incrementa a marca de tempo
-        # send(Mensagem(timestamp*10+ID, texto, False, timestamp)) # Envia a mensagem
-        send(Mensagem(timestamp*10+ID, texto, False, random.randint(0, 1000))) # Envia a mensagem
+        send(Mensagem(timestamp*10+ID, texto, False, timestamp)) # Envia a mensagem
         # time.sleep(random.randint(0, 3)) # Dorme um intervalo aleatório (simula atrasos na rede)
 
 listen_thread = threading.Thread(target=listen)
