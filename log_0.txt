@@ -1,0 +1,15 @@
+0: Iniciando processo com id = 0
+0: Ouvindo na porta = 5000
+0: Cliente conectado
+2: Enviado OK ao processo 1
+2: Dados recebidos: {'clock': (2, 0), 'message': 'ok'}
+4: Enviado OK ao processo 1
+4: Dados recebidos: {'clock': (4, 0), 'message': 'ok'}
+6: Enviado OK ao processo 1
+6: Dados recebidos: {'clock': (6, 0), 'message': 'ok'}
+8: Enviado OK ao processo 1
+8: Dados recebidos: {'clock': (8, 0), 'message': 'ok'}
+10: Enviado OK ao processo 1
+10: Dados recebidos: {'clock': (10, 0), 'message': 'ok'}
+12: Enviado OK ao processo 1
+12: Dados recebidos: {'clock': (12, 0), 'message': 'ok'}

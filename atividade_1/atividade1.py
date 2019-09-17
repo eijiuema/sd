@@ -46,7 +46,7 @@ class Mensagem():
     def unpack(data):
         mensagem = struct.unpack(Mensagem.format, data)
         return Mensagem(mensagem[0], mensagem[1].decode('UTF-8').strip('\x00'), mensagem[2], mensagem[3])
-[]
+
 timestamp = 0 # Inicialização das marcas de tempo
 fila = [] # Inicialização da fila de mensagens
 acks = dict() # Inicialização dos contadores de ACKs
