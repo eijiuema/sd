@@ -1,3 +1,4 @@
+import os
 import sys
 import socket
 import pickle
@@ -48,6 +49,7 @@ class Process():
         self.state = state
 
         if self.state == Process.OK:
+            self.file.close()
             for pid in self.queue:
                 self._send(pid, 'ok')
             self.queue.clear()
@@ -58,6 +60,10 @@ class Process():
             self.log("Estado: Aguardando")
         elif self.state == Process.USING:
             self.ok_count = 0
+            self.file = open('recurso.txt', 'w')
+            self.file.write(f'Processo {self.pid}')
+            self.file.flush()
+            os.fsync(self.file.fileno())
             self.log("Estado: Usando recurso")
 
     def _t_listen(self):
