@@ -4,6 +4,7 @@ import socket
 import pickle
 from threading import Thread
 
+PROCESS_N = 3
 ADDRESS = '127.0.0.1'
 PORT = 5000
 
@@ -15,7 +16,8 @@ def main():
 
     while True:
         duracao = int(input())
-        process.send(0, duracao)
+        for i in range(0, PROCESS_N):
+            process.send(i, 'request')
         sleep(1)
 
 class Process():
@@ -41,7 +43,7 @@ class Process():
 
             self.clock = max(self.clock, data['clock'])
 
-            
+
 
             print(data)
             client.close()
@@ -49,7 +51,7 @@ class Process():
 
     def send(self, target_pid, message):
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((ADDRESS, PORT+self.pid))
+        client.connect((ADDRESS, PORT+target_pid))
         
         data = {
             'pid': self.pid,
