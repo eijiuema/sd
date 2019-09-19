@@ -5,6 +5,7 @@ import random
 import argparse
 from time import sleep
 from threading import Thread
+from threading import Lock
 
 PROCESS_N = 3
 ADDRESS = '127.0.0.1'
@@ -12,24 +13,24 @@ PORT = 5000
 
 def main():
 
-    os.system("mode con cols=80 lines=2")
+    os.system(f"mode con cols=62 lines={PROCESS_N+1}")
 
-    parser = argparse.ArgumentParser(description="Algoritmo distribuído de exclusão mútua.")
-    parser.add_argument('--pid', type=int, required=True)
-    parser.add_argument('--sleep_time', type=int, required=True)
-    parser.add_argument('--use_time', type=int, required=True)
+    processes = []
 
-    args = parser.parse_args()
-
-    Process(args.pid, args.use_time, args.sleep_time)
+    for i in range(0, PROCESS_N):
+        processes.append(Process(i, 1, 1))
 
     while True:
-        sleep(1)
+        os.system('cls')
+        for process in processes:
+            print(f'PID: {process.pid} \tCLOCK: {process.clock} \tSTATE: {process.state}')
+            pass
+        sleep(0.1)
 
 class Process():
     OK = 'Não aguardando recurso'
     REQUEST = 'Aguardando recurso'
-    USING = 'Utilizando recurso'
+    USING = 'Utilizando recurso\t<===='
 
     def __init__(self, pid, use_time, sleep_time):
         self.pid = pid
@@ -40,68 +41,68 @@ class Process():
         self.ok_count = 0
         self.use_time = use_time
         self.sleep_time = sleep_time
-        Thread(target=self._t_listen, daemon=True).start()
-
+        self.lock = Lock()
         self.set_state(Process.OK)
+        
+        Thread(target=self._t_start, daemon=True).start()
 
-        while True:
-
-            sleep(self.sleep_time)
-
-            self.clock += 1
-            
-            if self.state == Process.OK:
-                self.set_state(Process.REQUEST)
-
-            self.print_state()
+    def _t_start(self):
+        Thread(target=self._t_listen, daemon=True).start()
+        Thread(target=self._t_write, daemon=True).start()
 
     def log(self, message):
-        print(f'{self.clock}: {message}')
+        print(f'{message}')
 
     def _t_recurso(self):
         sleep(self.use_time)
         self.set_state(Process.OK)
 
-    def print_state(self):
-        os.system('cls')
-        print(f'{self.clock}: {self.state}')
-
     def set_state(self, state):
-        self.state = state
 
-        if self.state == Process.OK:
-            for pid in self.queue:
-                self._send(pid, 'ok')
-            self.queue.clear()
-            # self.log("Estado: Não usando recurso")
-        elif self.state == Process.REQUEST:
-            self.request_timestamp = self.clock
-            self._send_all('request')
-            # self.log("Estado: Aguardando recurso")
-        elif self.state == Process.USING:
-            self.ok_count = 0
-            Thread(target=self._t_recurso).start()
-            # self.log("Estado: Usando recurso")
+        with self.lock:
+            self.state = state
+            if self.state == Process.OK:
+                for pid in self.queue:
+                    self._send(pid, 'ok')
+                self.queue.clear()
+            elif self.state == Process.REQUEST:
+                self.request_timestamp = self.clock
+                self._send_all('request')
+            elif self.state == Process.USING:
+                self.ok_count = 0
+                Thread(target=self._t_recurso).start()
+
+    def _t_write(self):
+        while True:
+
+            sleep(self.sleep_time)
+
+            with self.lock:
+                self.clock += 1
+
+            if self.state == Process.OK:
+                self.set_state(Process.REQUEST)
 
     def _t_listen(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind((ADDRESS, PORT+self.pid))
-        server.listen(5)
-        self.log(f"Listening on port {PORT+self.pid}")
+        server.listen(PROCESS_N*PROCESS_N)
+        # self.log(f"Listening on port {PORT+self.pid}")
         while True:
             client, addr = server.accept()
             data = pickle.loads(client.recv(1024))
             client.close()
 
-            self.clock = max(self.clock, data['clock']) + 1
+            with self.lock:
+                self.clock = max(self.clock, data['clock']) + 1
 
             if data['message'] == 'ok':
-                # self.log(f'Ok de {data["pid"]}')
+                # self.log(f'{self.pid}: Ok de {data["pid"]}')
                 self.ok_count += 1
                 if self.ok_count == PROCESS_N - 1:
                     self.set_state(Process.USING)
             elif data['message'] == 'request':
-                # self.log(f'Request de {data["pid"]}')
+                # self.log(f'{self.pid}: Request de {data["pid"]}')
                 if self.state == Process.OK:
                     self._send(data['pid'], 'ok')
                 elif self.state == Process.USING:
@@ -120,7 +121,7 @@ class Process():
                     else:
                         self._send(data['pid'], 'ok')
             elif data['message'] == 'deny':
-                # self.log(f'Deny de {data["pid"]}')
+                # self.log(f'{self.pid}: Deny de {data["pid"]}')
                 pass
 
     def _send(self, target_pid, message):
@@ -132,8 +133,6 @@ class Process():
             'clock': self.clock,
             'message': message
         }
-
-        # sleep(random.randint(0, 2))
 
         client.send(pickle.dumps(data))
 
