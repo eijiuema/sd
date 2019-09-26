@@ -1,1 +1,1 @@
-start "Processo 2" py atividade3.py --id 2
+start "Processo 2" py atividade3.py --id 2 --n 5

@@ -1,11 +1,16 @@
 import os
-import socket
-import pickle
 import random
 import argparse
 from time import sleep
 from threading import Thread
 from threading import Lock
+
+from multiprocessing.connection import Client
+from multiprocessing.connection import Listener
+
+PROCESS_N = 5
+ADDRESS = '127.0.0.1'
+PORT = 5000
 
 # Threaded function snippet
 def threaded(fn):
@@ -17,11 +22,6 @@ def threaded(fn):
         thread.start()
         return thread
     return wrapper
-
-PROCESS_N = 5
-ADDRESS = '127.0.0.1'
-PORT = 5000
-
 
 def main():
 
@@ -75,13 +75,13 @@ class Process():
             sleep(1)
 
     def t_listen(self):
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind((ADDRESS, PORT+self.id))
-        server.listen(PROCESS_N*PROCESS_N-1)
+        server = Listener((ADDRESS, PORT+self.id))
+
         while True:
-            client = server.accept()[0]
-            data = pickle.loads(client.recv(2048))
-            client.close()
+            conn = server.accept()
+            data = conn.recv()
+            conn.close()
+
             with self.clock_lock:
                 self.clock = max(self.clock, data['clock']) + 1
 
@@ -100,7 +100,10 @@ class Process():
 
             if data['message'] == 'election' and data['id'] < self.id and self.election_state != 2:
                 self.print(f"Processo {data['id']} pediu por uma eleição")
-                self.send(data['id'], 'alive')
+                self.send({
+                    'id': self.id,
+                    'msg': 'alive'
+                })
                 if self.election_state == 0:
                     self.start_election()
 
@@ -112,20 +115,19 @@ class Process():
         if target == self.id:
             return
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
+        conn = Client((ADDRESS, PORT+target))
 
         try:
-            s.connect((ADDRESS, PORT+target))
+            conn.connect((ADDRESS, PORT+target))
             data = {
                 'id': self.id,
                 'clock': self.clock,
                 'message': message
             }
 
-            s.sendall(pickle.dumps(data))
-            s.close()
-        except socket.error:
+            conn.send(data)
+            conn.close()
+        except :
             self.print(f"Falha ao comunicar com o processo {target}")
             if target in self.alive_list:
                 self.alive_list.remove(target)
