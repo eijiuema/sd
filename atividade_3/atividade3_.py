@@ -1,11 +1,16 @@
 import os
-import socket
-import pickle
 import random
 import argparse
 from time import sleep
 from threading import Thread
 from threading import Lock
+
+from multiprocessing.connection import Client
+from multiprocessing.connection import Listener
+
+PROCESS_N = 5
+ADDRESS = '127.0.0.1'
+PORT = 5000
 
 # Threaded function snippet
 def threaded(fn):
@@ -17,11 +22,6 @@ def threaded(fn):
         thread.start()
         return thread
     return wrapper
-
-PROCESS_N = 5
-ADDRESS = '127.0.0.1'
-PORT = 5000
-
 
 def main():
 
@@ -75,34 +75,35 @@ class Process():
             sleep(1)
 
     def t_listen(self):
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind((ADDRESS, PORT+self.id))
-        server.listen(PROCESS_N*PROCESS_N-1)
-        while True:
-            client = server.accept()[0]
-            data = pickle.loads(client.recv(2048))
-            client.close()
-            with self.clock_lock:
-                self.clock = max(self.clock, data['clock']) + 1
+        
+        with Listener((ADDRESS, PORT+self.id)) as listener:
+            with listener.accept() as conn:
+                data = conn.recv()
 
-            if data['message'] == 'ping' and data['id'] not in self.alive_list:
-                self.alive_list.append(data['id'])
-                self.print(f"Processo {data['id']} se recuperou")
+                with self.clock_lock:
+                    self.clock = max(self.clock, data['clock']) + 1
 
-            if data['message'] == 'alive' and data['id'] > self.id and self.election_state == 1:
-                self.election_state = 2
-                self.print(f"Processo {data['id']} respondeu, desistindo da eleição...")
+                if data['message'] == 'ping' and data['id'] not in self.alive_list:
+                    self.alive_list.append(data['id'])
+                    self.print(f"Processo {data['id']} se recuperou")
 
-            if data['message'] == 'coordinator' and self.leader[1] != data['id'] and self.leader[0] < data['clock'] or (self.leader[0] == data['clock'] and self.leader[1] < data['id']):
-                self.leader = (data['clock'], data['id'])
-                self.election_state = 0
-                self.print(f"Novo líder: {self.leader[1]}")
+                if data['message'] == 'alive' and data['id'] > self.id and self.election_state == 1:
+                    self.election_state = 2
+                    self.print(f"Processo {data['id']} respondeu, desistindo da eleição...")
 
-            if data['message'] == 'election' and data['id'] < self.id and self.election_state != 2:
-                self.print(f"Processo {data['id']} pediu por uma eleição")
-                self.send(data['id'], 'alive')
-                if self.election_state == 0:
-                    self.start_election()
+                if data['message'] == 'coordinator' and self.leader[1] != data['id'] and self.leader[0] < data['clock'] or (self.leader[0] == data['clock'] and self.leader[1] < data['id']):
+                    self.leader = (data['clock'], data['id'])
+                    self.election_state = 0
+                    self.print(f"Novo líder: {self.leader[1]}")
+
+                if data['message'] == 'election' and data['id'] < self.id and self.election_state != 2:
+                    self.print(f"Processo {data['id']} pediu por uma eleição")
+                    self.send({
+                        'id': self.id,
+                        'msg': 'alive'
+                    })
+                    if self.election_state == 0:
+                        self.start_election()
 
     def is_newer(self, msg1, msg2):
         return msg1 != None and msg1[0] < msg2[0] or msg1[0] == msg2[0] and msg1[1] > msg2[1]
@@ -112,20 +113,19 @@ class Process():
         if target == self.id:
             return
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
+        conn = Client((ADDRESS, PORT+target))
 
         try:
-            s.connect((ADDRESS, PORT+target))
+            conn.connect((ADDRESS, PORT+target))
             data = {
                 'id': self.id,
                 'clock': self.clock,
                 'message': message
             }
 
-            s.sendall(pickle.dumps(data))
-            s.close()
-        except socket.error:
+            conn.send(data)
+            conn.close()
+        except :
             self.print(f"Falha ao comunicar com o processo {target}")
             if target in self.alive_list:
                 self.alive_list.remove(target)
