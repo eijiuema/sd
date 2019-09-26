@@ -75,37 +75,35 @@ class Process():
             sleep(1)
 
     def t_listen(self):
-        server = Listener((ADDRESS, PORT+self.id))
+        
+        with Listener((ADDRESS, PORT+self.id)) as listener:
+            with listener.accept() as conn:
+                data = conn.recv()
 
-        while True:
-            conn = server.accept()
-            data = conn.recv()
-            conn.close()
+                with self.clock_lock:
+                    self.clock = max(self.clock, data['clock']) + 1
 
-            with self.clock_lock:
-                self.clock = max(self.clock, data['clock']) + 1
+                if data['message'] == 'ping' and data['id'] not in self.alive_list:
+                    self.alive_list.append(data['id'])
+                    self.print(f"Processo {data['id']} se recuperou")
 
-            if data['message'] == 'ping' and data['id'] not in self.alive_list:
-                self.alive_list.append(data['id'])
-                self.print(f"Processo {data['id']} se recuperou")
+                if data['message'] == 'alive' and data['id'] > self.id and self.election_state == 1:
+                    self.election_state = 2
+                    self.print(f"Processo {data['id']} respondeu, desistindo da eleição...")
 
-            if data['message'] == 'alive' and data['id'] > self.id and self.election_state == 1:
-                self.election_state = 2
-                self.print(f"Processo {data['id']} respondeu, desistindo da eleição...")
+                if data['message'] == 'coordinator' and self.leader[1] != data['id'] and self.leader[0] < data['clock'] or (self.leader[0] == data['clock'] and self.leader[1] < data['id']):
+                    self.leader = (data['clock'], data['id'])
+                    self.election_state = 0
+                    self.print(f"Novo líder: {self.leader[1]}")
 
-            if data['message'] == 'coordinator' and self.leader[1] != data['id'] and self.leader[0] < data['clock'] or (self.leader[0] == data['clock'] and self.leader[1] < data['id']):
-                self.leader = (data['clock'], data['id'])
-                self.election_state = 0
-                self.print(f"Novo líder: {self.leader[1]}")
-
-            if data['message'] == 'election' and data['id'] < self.id and self.election_state != 2:
-                self.print(f"Processo {data['id']} pediu por uma eleição")
-                self.send({
-                    'id': self.id,
-                    'msg': 'alive'
-                })
-                if self.election_state == 0:
-                    self.start_election()
+                if data['message'] == 'election' and data['id'] < self.id and self.election_state != 2:
+                    self.print(f"Processo {data['id']} pediu por uma eleição")
+                    self.send({
+                        'id': self.id,
+                        'msg': 'alive'
+                    })
+                    if self.election_state == 0:
+                        self.start_election()
 
     def is_newer(self, msg1, msg2):
         return msg1 != None and msg1[0] < msg2[0] or msg1[0] == msg2[0] and msg1[1] > msg2[1]

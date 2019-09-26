@@ -1,1 +1,1 @@
-for /l %%x in (0, 1, 19) do start "Processo %%x" py atividade3.py --id %%x --n 20
+for /l %%x in (0, 1, 4) do start "Processo %%x" py atividade3.py --id %%x --n 5
