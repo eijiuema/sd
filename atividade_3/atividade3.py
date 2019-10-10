@@ -27,7 +27,7 @@ def main():
 
     global PROCESS_N
 
-    # os.system("mode con cols=40 lines=5")
+    # os.system("mode con cols=50 lines=5")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--id', type=int, required=True)
@@ -93,7 +93,7 @@ class Process():
                 self.election_state = 2
                 self.print(f"Processo {data['id']} respondeu, desistindo da eleição...")
 
-            if data['message'] == 'coordinator' and self.leader[1] != data['id'] and self.leader[0] < data['clock'] or (self.leader[0] == data['clock'] and self.leader[1] < data['id']):
+            if data['message'] == 'coordinator' and self.leader[0] < data['clock'] or (self.leader[0] == data['clock'] and self.leader[1] < data['id']):
                 self.leader = (data['clock'], data['id'])
                 self.election_state = 0
                 self.print(f"Novo líder: {self.leader[1]}")
