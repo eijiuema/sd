@@ -38,6 +38,8 @@ class Process:
         self.ack_counter = 0
         self.listen = self.listen()
 
+        sleep(1)
+
         if election:
             print('Iniciando eleição')
             with self.election_id_lock:
