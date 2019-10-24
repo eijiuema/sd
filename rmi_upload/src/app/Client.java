@@ -15,7 +15,7 @@ public class Client {
             byte[] content = Files.readAllBytes(file.toPath());
             Registry registry = LocateRegistry.getRegistry(host);
             Upload server = (Upload) registry.lookup("Server");
-            server.upload(content, content.length + ".txt");
+            server.upload(content, file.getName());
         } catch (Exception e) {
             e.printStackTrace();
         }
