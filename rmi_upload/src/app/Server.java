@@ -25,6 +25,7 @@ public class Server implements Upload {
 
     public static void main(String[] args) {
         try {
+            System.setProperty("java.rmi.server.hostname", "200.18.100.166");
             Registry registry = LocateRegistry.getRegistry();
             registry.bind("Server", UnicastRemoteObject.exportObject(new Server(), 0));
             System.out.println("Server is ready!");
