@@ -15,7 +15,11 @@ public class Client {
             byte[] content = Files.readAllBytes(file.toPath());
             Registry registry = LocateRegistry.getRegistry(host);
             Upload server = (Upload) registry.lookup("Server");
+            long startTime = System.nanoTime();
             server.upload(content, file.getName());
+            long endTime = System.nanoTime();
+            long duration = (endTime - startTime); // divide by 1000000 to get milliseconds.
+            System.out.println(duration / 1000000 + "ms");
         } catch (Exception e) {
             e.printStackTrace();
         }

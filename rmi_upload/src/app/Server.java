@@ -13,7 +13,8 @@ public class Server implements Upload {
     @Override
     public void upload(byte[] data, String serverPath) throws RemoteException {
         try {
-            File file = new File("uploaded/" + serverPath);
+            File file = new File("uploaded\\" + serverPath);
+            file.createNewFile();
             FileOutputStream out = new FileOutputStream(file);
             out.write(data);
             out.flush();
@@ -25,9 +26,9 @@ public class Server implements Upload {
 
     public static void main(String[] args) {
         try {
-            System.setProperty("java.rmi.server.hostname", "200.18.100.166");
+            System.setProperty("java.rmi.server.hostname", "10.42.0.210");
             Registry registry = LocateRegistry.getRegistry();
-            registry.bind("Server", UnicastRemoteObject.exportObject(new Server(), 0));
+            registry.rebind("Server", UnicastRemoteObject.exportObject(new Server(), 0));
             System.out.println("Server is ready!");
         } catch (Exception e) {
             e.printStackTrace();
